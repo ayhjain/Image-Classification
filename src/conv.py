@@ -349,7 +349,22 @@ def evaluate_lenet5(learning_rate=0.1, n_epochs=200,
     print >> sys.stderr, ('The code for file ' +
                           os.path.split(__file__)[1] +
                           ' ran for %.2fm' % ((end_time - start_time) / 60.))
+						  
+    print "Dumping parameters to ../data/convnet.pkl"
+    dir = os.getcwd()
+    path = os.path.join(dir,"../data")
+    os.chdir(path)
 
+    with open( "convnet.pkl" , 'wb') as file:
+        dict = {
+        "layer0" : layer0.param,
+        "layer1" : layer1.param,
+		"layer2" : layer2.param,
+		"layer3" : layer3.param
+        }
+        pickle.dump(dict, file, 2 )
+        os.chdir(dir)
+		
 if __name__ == '__main__':
     evaluate_lenet5()
 

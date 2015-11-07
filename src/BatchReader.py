@@ -2,7 +2,7 @@ import numpy as np
 import csv, os
 import os.path
 
-BATCH_SIZE = 1000
+BATCH_SIZE = 50000
 
 class inputs(object):
 
@@ -10,16 +10,16 @@ class inputs(object):
         self.counter = 0
         self.testingData = testingData
         if not testingData:
-            self.infile = open('..\\data\\train_inputs.csv', 'rb')
+            self.infile = open('..\data\train_inputs.csv', 'rb')
             self.inreader = csv.reader(self.infile, delimiter=',')
             next(self.inreader, None)  # skip the header
 
-            self.outfile = open('..\\data\\train_outputs.csv', 'rb')
+            self.outfile = open('..\data\train_outputs.csv', 'rb')
             self.outreader = csv.reader(self.outfile, delimiter=',')
             next(self.outreader, None)  # skip the header
         
         else :
-            self.infile = open('..\\data\\test_inputs.csv', 'rb')
+            self.infile = open('..\data\test_inputs.csv', 'rb')
             self.inreader = csv.reader(self.infile, delimiter=',')
             next(self.inreader, None)  # skip the header
 
@@ -36,7 +36,7 @@ class inputs(object):
         if not self.testingData:
             # Load 'BATCH_SIZE' training inputs to a python list
             dir = os.getcwd()
-            path = os.path.join(dir,"..\\data\\TrainingData")
+            path = os.path.join(dir,"..\data\TrainingData")
             os.chdir(path)
 
             if os.path.isfile("train_inputs"+str(c)+".npy") and os.path.isfile("train_outputs"+str(c)+".npy") : 
@@ -81,7 +81,7 @@ class inputs(object):
 
         else : # Reading Test data
             dir = os.getcwd()
-            path = os.path.join(dir,"..\\data\\TestingData")
+            path = os.path.join(dir,"..\data\TestingData")
             os.chdir(path)
 
             if os.path.isfile("test_inputs"+str(c)+".npy") : 
