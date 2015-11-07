@@ -10,16 +10,16 @@ class inputs(object):
         self.counter = 0
         self.testingData = testingData
         if not testingData:
-            self.infile = open('..\data\train_inputs.csv', 'rb')
+            self.infile = open('../data/train_inputs.csv', 'rb')
             self.inreader = csv.reader(self.infile, delimiter=',')
             next(self.inreader, None)  # skip the header
 
-            self.outfile = open('..\data\train_outputs.csv', 'rb')
+            self.outfile = open('../data/train_outputs.csv', 'rb')
             self.outreader = csv.reader(self.outfile, delimiter=',')
             next(self.outreader, None)  # skip the header
         
         else :
-            self.infile = open('..\data\test_inputs.csv', 'rb')
+            self.infile = open('../data/test_inputs.csv', 'rb')
             self.inreader = csv.reader(self.infile, delimiter=',')
             next(self.inreader, None)  # skip the header
 
@@ -29,14 +29,14 @@ class inputs(object):
 
 
     def getNPArray(self, d):
-        # Returns array in (0-999)*k batches
+        # Returns image pixel array and actual numbers in batch - for any number between range 1000k - 1000(k+1), returns this range
         
         c = (d/BATCH_SIZE) + 1
 
         if not self.testingData:
             # Load 'BATCH_SIZE' training inputs to a python list
             dir = os.getcwd()
-            path = os.path.join(dir,"..\data\TrainingData")
+            path = os.path.join(dir,"../data/TrainingData")
             os.chdir(path)
 
             if os.path.isfile("train_inputs"+str(c)+".npy") and os.path.isfile("train_outputs"+str(c)+".npy") : 
@@ -62,7 +62,8 @@ class inputs(object):
                     i=0
                     train_outputs = []
                     for train_output in self.outreader:  
-                        train_output_no_id = int(train_output[1])
+                        train_output_no_id = np.zeros(10).astype(np.float32)
+                        train_output_no_id[int(train_output[1])] = 1
                         train_outputs.append(train_output_no_id)
                         i+=1
                         if i>=BATCH_SIZE: break
@@ -81,7 +82,7 @@ class inputs(object):
 
         else : # Reading Test data
             dir = os.getcwd()
-            path = os.path.join(dir,"..\data\TestingData")
+            path = os.path.join(dir,"../data/TestingData")
             os.chdir(path)
 
             if os.path.isfile("test_inputs"+str(c)+".npy") : 

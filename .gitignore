@@ -41,3 +41,11 @@ $RECYCLE.BIN/
 Network Trash Folder
 Temporary Items
 .apdisk
+*.csv
+data/ann_parameters.pkl
+data/generate_random_submission.py
+data/load_training_data.py
+data/TrainingData/train_inputs1.npy
+data/TrainingData/train_outputs1.npy
+data/train_outputs2.npy
+data/view_random_training_examples.py
