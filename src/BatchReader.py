@@ -85,30 +85,24 @@ class inputs(object):
             path = os.path.join(dir,"../data/TestingData")
             os.chdir(path)
 
-            if os.path.isfile("test_inputs"+str(c)+".npy") : 
+            if os.path.isfile("test_inputs.npy") : 
                 print ("Data picked from memory.")
-                test_inputs_np = np.load("train_inputs"+str(c)+".npy")
+                test_inputs_np = np.load("test_inputs.npy")
 
             else:
-                while (self.counter <= c):
-                    self.counter += 1
-                    
-                    i=0
-                    test_inputs = []
-                    for test_input in self.inreader: 
-                        test_input_no_id = []
-                        for dimension in test_input[1:]:
-                            test_input_no_id.append(float(dimension))
-                        test_inputs.append(test_input_no_id) # Load each sample as a numpy array, which is appened to the python list
-                        i+=1
-                        if i>=BATCH_SIZE: break
+                test_inputs = []
+                for test_input in self.inreader: 
+                    test_input_no_id = []
+                    for dimension in test_input[1:]:
+                        test_input_no_id.append(float(dimension))
+                    test_inputs.append(test_input_no_id) # Load each sample as a numpy array, which is appened to the python list
 
-                    # Convert python lists to numpy arrays
-                    test_inputs_np = np.asarray(test_inputs, dtype='float32')
+                # Convert python lists to numpy arrays
+                test_inputs_np = np.asarray(test_inputs, dtype='float32')
 
-                    # Save as numpy array files
-                    np.save('test_inputs'+str(self.counter), test_inputs_np)
-                    os.chdir('..')
+                # Save as numpy array files
+                np.save('test_inputs', test_inputs_np)
+                os.chdir('..')
 
             os.chdir(dir)
             return test_inputs_np

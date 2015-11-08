@@ -12,8 +12,6 @@ import random
 import itertools
 import collections
 import pickle
-from sklearn import datasets
-import BatchReader
 
 ################################################################################################
 
@@ -21,11 +19,10 @@ import BatchReader
 
 LOW = -0.01
 HIGH = 0.01
-ERROR_LIMIT=0.004
-BATCH_SIZE = 7
+ERROR_LIMIT=1e-3
 
 # Setting seed for random for consistent results
-#random.seed(12345)
+random.seed(12345)
 
 ################################################################################################
 
@@ -48,7 +45,6 @@ class ArtificialNeuralNetwork():
         self.nOut = n_outputs              
         self.nHiddenNodes = n_hidden_nodes              
         self.nHiddenLayers = n_hidden_layers
-        print self.nIn, self.nOut, self.nHiddenNodes, self.nHiddenLayers
 
         # Setting weights of different nodes to random values
         # n is number of weights required (+1 for bais terms)
@@ -69,18 +65,18 @@ class ArtificialNeuralNetwork():
         firstLayer = weightList[:((self.nIn+1)*self.nHiddenNodes)]
         #print firstLayer
         weightList = weightList[((self.nIn+1)*self.nHiddenNodes): ]
-        self.weight.append( np.array(firstLayer).reshape((self.nIn+1), self.nHiddenNodes) )
+        self.weight.append( np.array(firstLayer).reshape(self.nHiddenNodes, (self.nIn+1)) )
 
         for i in range(1, self.nHiddenLayers):
             hiddenLayer = weightList[:((self.nHiddenNodes+1)*self.nHiddenNodes)]
-            self.weight.append( np.array(hiddenLayer).reshape( (self.nHiddenNodes+1), self.nHiddenNodes) )
+            self.weight.append( np.array(hiddenLayer).reshape(self.nHiddenNodes, (self.nHiddenNodes+1)) )
             weightList = weightList[((self.nHiddenNodes+1)*self.nHiddenNodes):]
 
         outputLayer = weightList
-        self.weight.append( np.array(outputLayer).reshape((self.nHiddenNodes+1), self.nOut) )
+        self.weight.append( np.array(outputLayer).reshape(self.nOut, (self.nHiddenNodes+1)) )
 
         for layer, w in enumerate(self.weight):
-            print 'layer: ', layer, 'w.shape: ', w.shape, 'np.max(w.T):', np.max(w.T)
+            print 'layer: ', layer, 'w.shape: ', w.shape
 
 
     def biasTerm(self, input):
@@ -93,7 +89,6 @@ class ArtificialNeuralNetwork():
         # the activation function
         try:
             signal = 1/(1+math.e**(-x))
-            
         except OverflowError:
             signal = float("inf")
 
@@ -103,38 +98,27 @@ class ArtificialNeuralNetwork():
         else:
             # Return the activation signal
             return signal
-
-
+            
 
     def backPropagation(self, trainX, trainY , alpha=0.3, momentum_factor=0.9  ):
         
         assert len(trainX[0]) == self.nIn, "ERROR: input size varies from the defined input setting"
+        assert len(trainY[0]) == self.nOut, "ERROR: output size varies from the defined output setting"
         
-        #trainX = np.array( trainX )
-        #trainY = np.array( trainY )
+        training_data = np.array( trainX )
+        training_targets = np.array( trainY )
         
         mse = float("inf")
-        momentum = collections.defaultdict(int)
+        momentum = collections.defaultdict( int )
         #print "Calculating weights inside backPropagation method"
         i = 0
         # Gradient descent till we get error below ERROR_LIMIT
-        while i<50000 and mse > ERROR_LIMIT:
-            #print i
-
-            index = np.random.randint(0, len(trainX), BATCH_SIZE)
-            training_data = np.array([trainX[k] for k in index]).astype(np.float32)
-            training_targets = np.array([trainY[k] for k in index]).astype(np.float32)
-            '''
-            training_targets = np.zeros(shape=(BATCH_SIZE, self.nOut)).astype(np.float32)
-            for l, k in enumerate(index): training_targets[l,trainY[k]] = 1
-            #print training_targets
-            '''
-
+        while mse > ERROR_LIMIT:
             out = self.forwardPass(training_data)
             #print "Back in backPropagation method"
-            #print 'out[-1][:,:-1].shape:', out[-1][:,:-1].shape, 'training_targets.shape:', training_targets.shape       
+            #print len(out), out[-1][:,:-1].shape, training_targets.shape       
             error = training_targets - out[-1][:,1:] # output from last layer - also excluding first column (the bias term)
-            #print "i: ", i, "error shape = ", error.shape, 'error:', error
+            #print "i: ", i, "error shape = ", error.shape
             mse = np.mean( np.power(error,2) )
             delta = error
 
@@ -143,7 +127,7 @@ class ArtificialNeuralNetwork():
                 #print 'j:', j
                 w = self.weight[j]
                 inp = out[j]
-                print 'j:', j, "inp.T shape = ", inp.T.shape, "delta.shape =", delta.shape
+                #print 'j:', j, "inp.T shape = ", inp.T.shape, "delta.shape =", delta.shape
                 #print inp.T
 
                 dW = alpha * np.dot(inp.T, delta) + momentum_factor * momentum[j]
@@ -165,23 +149,22 @@ class ArtificialNeuralNetwork():
                     print "self.weight[j].shape: ",self.weight[j].shape, 'dW.T.shape: ', dW.T.shape
                     self.weight[j] += dW.T
                 '''
-                print "self.weight[j].shape: ",self.weight[j].shape, 'dW.T.shape: ', dW.T.shape
-                self.weight[j] += dW
+                #print "self.weight[j].shape: ",self.weight[j].shape, 'dW.T.shape: ', dW.T.shape
+                self.weight[j] += dW.T
                 #print dW.T
 
                 # Calculate previous layer's delta for next calculation
                 if j!= 0:
-                    print "delta.shape:", delta.shape, "w.T.shape: ", w.T.shape
-                    sig = np.dot( delta, w[1:,:].T )
-                    delta = np.multiply( sig , self.sigmoid_function(inp[:,1:], derivative=True) )
-                    print 'delta.shape: ', delta.shape
+                 #   print "delta.shape:", delta.shape, "w.shape: ", w.shape
+                    delta = np.multiply( np.dot( delta, w[:,1:] ) , self.sigmoid_function(inp[:,1:], derivative=True) )
+                 #   print 'delta.shape: ', delta.shape
                 
                 # Store the momentum
                 momentum[j] = dW
                  
             i += 1
             if i%1000==0:
-                print "MSE: %g, iterations: %d" % (mse, i)
+                print "MSE after %g iterations: %d" % (mse, i)
         
         print "Converged to error bound (%.4g) with MSE = %.4g." % ( ERROR_LIMIT, mse )
         print "Training ran for %d iterations." % i
@@ -196,35 +179,14 @@ class ArtificialNeuralNetwork():
             # Looping over network layers to calculate output
             #print "output[-1].shape: ",output[-1].shape, 'w.T.shape: ',w.T.shape 
             # print w[:,1:].T.shape
-            o = np.dot( output[-1], w ) # adding bias term for each layer
+            o = np.dot( output[-1], w.T ) # adding bias term for each layer
             o = self.sigmoid_function(o)
             output.append( self.biasTerm(o) )
         #print len(output), output[0].shape
         #print 
-        #for term in output: print term.shape
-        return output
-
-
-    def forwardPass1(self, inp_vec):
-        # each entry of output list has 1 appended as bias term at 0th index
-        #print "In Forward Pass"
-        print "Start"
-        output = [ self.biasTerm(inp_vec) ]
-        for w in self.weight:
-            # Looping over network layers to calculate output
-            print "output[-1].shape: ",output[-1].shape, 'w.T.shape: ',w.T.shape 
-            print 'output[-1]:', output[-1]
-            print 'np.max(w.T):', np.max(w.T)
-            o = np.dot( output[-1], w.T ) # adding bias term for each layer
-            print 'o.shape:' , o.shape
-            o = self.sigmoid_function(o)
-            print 'o:',o 
-            output.append( self.biasTerm(o) )
-        #print len(output), output[0].shape
-        
         #for term in output: print term
-        print "Done"
         return output
+
 
     def dumpToFile(self):
         print "Dumping parameters to ../data/ann_parameters.pkl"
@@ -265,83 +227,42 @@ class ArtificialNeuralNetwork():
 
 
 
-
-
 if __name__=='__main__':
 
-    #####################
-    # Autoencoder
-    #####################
-    X = np.array([ [1,0,0,0,0,0,0,0], [0,1,0,0,0,0,0,0], [0,0,1,0,0,0,0,0], [0,0,0,1,0,0,0,0], [0,0,0,0,1,0,0,0], [0,0,0,0,0,1,0,0], [0,0,0,0,0,0,1,0], [0,0,0,0,0,0,0,1] ]).astype(np.float32)
-    Y=X
-    trainX = X[:-2,:]
-    trainY = Y[:-2,:]
-
-    testX = X[-2:,:]
-    testY = Y[-2:,:]
-
-    '''
-    ######################
-    # Boolean OR function
-    ######################
-    X = [[0,0, 0],[0,0, 1],[0,1, 0],[0,1, 1],[1,0, 0],[1,0, 1],[1,1, 0]]
-    Y = [[0],[1],[1],[1],[1],[1],[1]]
-    
-    ######################
-    # IRIS datasets
-    ######################
-    iris = datasets.load_digits()
-    X = iris.data
-    Y = iris.target
-    n_inputs = X.shape[1]
-    n_outputs = len(Y)
-    print X
-    print Y
-    
-    #####################
-    # Actual Image data 
-    #####################
-    br = BatchReader.inputs()
-    
-    X, Y = br.getNPArray(2)
-    trainX = X[1000:,:]
-    trainY = Y[1000:,:]
-
-    testX = X[1000:1008,:]
-    testY = Y[1000:1008,:]
-    '''
-    print X.shape, Y.shape
-    n_inputs = X.shape[1]
-    
-    n_outputs = Y.shape[1]
+    X =  [ [0,0,0,0,0,0,0,1], [0,1,0,0,0,0,0,0], [0,0,1,0,0,0,0,0], [0,0,0,1,0,0,0,0], [0,0,0,0,1,0,0,0], [0,0,0,0,0,1,0,0], [0,0,0,0,0,0,1,0] ]
+    Y = X
+    n_inputs = 8
+    n_outputs = 8
     n_hiddens = 3
-    n_hidden_layers = 1
+    n_hidden_layers = 2
 
-    # initialize the neural network
+     # initialize the neural network
     network = ArtificialNeuralNetwork(n_inputs, n_outputs, n_hiddens, n_hidden_layers)
 
     # start training on test set one
-    network.backPropagation(trainX, trainY, alpha=0.04, momentum_factor=0.9  )
+    network.backPropagation(X, Y, alpha=0.4, momentum_factor=0.9  )
 
     # save the trained network
     network.dumpToFile()
-    '''
+
     # load a stored network configuration
     # network.loadFromMemory()
-   # print [1,1,1], network.forwardPass(np.array([[1,1,1]]))[-1][:,1:]
+
     # print out the result
+    i= [0,0,0,0,0,0,0,1]
+    print i, network.forwardPass( np.array(i) )[-1][:,1:], "\ttarget:", i
 
-    '''
+    i= [1,0,0,0,0,0,0,0]
+    print i, network.forwardPass( np.array(i) )[-1][:,1:], "\ttarget:", i
 
-    predict = network.forwardPass(testX)[-1][0,1:]
-    print np.argmax(predict), np.argmax(testY[0,:])
+    i= [0,1,0,0,0,0,0,0]
+    print i, network.forwardPass( np.array(i) )[-1][:,1:], "\ttarget:", i
 
-
-    predict = network.forwardPass(testX)[-1][1,1:]
-    print np.argmax(predict), np.argmax(testY[1,:])
-
-    count=0
-    for i in range(testY.shape[0]):
-        print np.argmax(predict[i]), predict[i], testY[i]
-        if(np.argmax(testY[i]) != np.argmax(predict[i])): count += 1
-    print "Testing error: ", count
+    i= [0,0,1,0,0,0,0,0]
+    print i, network.forwardPass( np.array(i) )[-1][:,1:], "\ttarget:", i
+    i= [0,0,0,1,0,0,0,0]
+    print i, network.forwardPass( np.array(i) )[-1][:,1:], "\ttarget:", i
+    i= [0,0,0,0,1,0,0,0]
+    print i, network.forwardPass( np.array(i) )[-1][:,1:], "\ttarget:", i
+    i= [0,0,0,0,0,1,0,0]
+    print i, network.forwardPass( np.array(i) )[-1][:,1:], "\ttarget:", i

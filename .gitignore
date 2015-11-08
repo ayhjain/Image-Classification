@@ -49,3 +49,4 @@ data/TrainingData/train_inputs1.npy
 data/TrainingData/train_outputs1.npy
 data/train_outputs2.npy
 data/view_random_training_examples.py
+*.pyc
