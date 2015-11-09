@@ -136,21 +136,19 @@ class LeNetConvPoolLayer(object):
 
 class Network(object):
 
-    def __init__(self, batch_size = 200, 
-                    nkerns = [40,40,200], 
-                    dim_filter = [9, 5, 5], 
-                    num_hidden = [100,10], 
+    def __init__(self, rng, batch_size = 200, 
+                    nkerns = [35,70,35], 
                     gamma = 1e-6):
 
-        self.batch_size = batch_size
-        self.lowestError = 1.
         x = T.matrix()
         y = T.matrix()
         learning_rate = T.scalar()
         
-
         print '... building the model'
 
+        self.batch_size = batch_size
+        self.lowestError = 1.
+        
         # Reshape matrix of rasterized images of shape (batch_size, 28 * 28)
         # to a 4D tensor, compatible with our LeNetConvPoolLayer
         # (28, 28) is the size of MNIST images.
@@ -201,7 +199,7 @@ class Network(object):
             rng,
             input=layer3_input,
             n_in=nkerns[2] * 2 * 2,
-            n_out=500,
+            n_out=100,
             activation=T.tanh
         )
 
@@ -224,9 +222,9 @@ class Network(object):
         layer4 = HiddenLayer(
             rng,
             input=layer4_input,
-            n_in=500,
+            n_in=100,
             n_out=10,
-            activation=T.tanh
+            activation=T.nnet.softmax
         )
         params = layer0.params + layer1.params + layer2.params + layer3.params + layer4.params   
 
@@ -251,47 +249,42 @@ class Network(object):
         self.eval_net = theano.function([x],layer4.output)
 
         self.params = params
-        self.epoch = 0
+        
 
-
-    def rotate(self, X,r):
-        return np.float32([1./255 *scipy.misc.imrotate(i.reshape((48,48)),r).flatten() for i in X])
+    def rotate(self, X, angle):
+        return np.float32([1./255 *scipy.misc.imrotate(i.reshape((48,48)), angle).flatten() for i in X])
 
 
     def getParams(self):
-        return {'W':[i.get_value() for i in self.params],'epoch':self.epoch}
+        return {'W':[i.get_value() for i in self.params]}
     
     
     def setParams(self, dict_params):
         for i,p in zip(dict_params['W'],self.params):
             p.set_value(i)
-        self.epoch = dict_params['epoch']
+        
 
 
-
-    def trainNetwork(self, trainX, trainY,  validationX, validationY, learning_rate = 0.1, nepochs=800, tau = 250):
+    def trainNetwork(self, trainX, trainY,  validationX, validationY, learning_rate = 0.1, nepochs=600, tau = 250):
         
         n_batches = trainX.shape[0] / self.batch_size
 
-        start = self.epoch
-        print "Epoch:", self.epoch
-
         # train for a while
-        for i in range(start, nepochs):
-            self.epoch = i
-            c = 0
+        i = 0
+        while i < nepochs:
+            cost = 0
+            alpha = learning_rate * tau / (i * 1. + tau)
             t0 = timeit.default_timer()
+            
             for batch in range(n_batches):
                 x = trainX[batch*self.batch_size:(batch+1)*self.batch_size]
                 y = trainY[batch*self.batch_size:(batch+1)*self.batch_size]
-                alpha = learning_rate * tau / (i * 1. + tau)
                 x = self.rotate(x, np.random.uniform(0,360))
-                
-                c += self.train_model(x, y, alpha)
+                cost += self.train_model(x, y, alpha)
             
-            print i,c,timeit.default_timer()-t0
+            print "Iter:", i, " Cost:", cost, " Time Taken:", timeit.default_timer()-t0
             
-            if i%50 == 0 or i==nepochs-1:
+            if i%20 == 0 or i==nepochs-1:
                 err = self.calcError(trainX,trainY)
                 print "Train Error:", err
                 err = self.calcError(validationX, validationY)
@@ -302,6 +295,7 @@ class Network(object):
                     f = file('Conv_Params.pkl','w')
                     pickle.dump(self.getParams(), f)
                     f.close()
+            i += 1
 
 
 
@@ -317,7 +311,8 @@ class Network(object):
             y_k = []
             for angle in range(0,360,60):
                 y_k.append(self.eval_net(
-                    self.rotate( x[k*self.batch_size:(k+1)*self.batch_size],angle) )
+                        self.rotate( x[k*self.batch_size:(k+1)*self.batch_size],angle) 
+                        )
                 )
             y_i.append(np.float32(y_k).mean(axis=0))
         y = np.vstack(y_i)
@@ -328,7 +323,7 @@ class Network(object):
 
 if __name__ == '__main__':
     
-    rng = numpy.random.RandomState(23455)
+    rng = numpy.random.RandomState(42)
     br = BatchReader.inputs()
     br2 = BatchReader.inputs(testingData = True)
 
@@ -357,7 +352,7 @@ if __name__ == '__main__':
 
         print trainX.shape,trainY.shape,validationX.shape,validationY.shape
         
-        conv_net = Network(batch_size = 250)
+        conv_net = Network(rng, batch_size = 250)
 
         '''
         try:
@@ -370,8 +365,21 @@ if __name__ == '__main__':
 
         print "Training for %dth KFold" %(k+1)        
         conv_net.trainNetwork(trainX, trainY, validationX, validationY)
+
+        # To be removed
+        dict_params = pickle.load(file('Conv_Params.pkl','r'))
+        conv_net.setParams(dict_params)
+
+        y = conv_net.evaluate(test_X)
+        f = file('Test_Prediction.csv','w')
+        f.write("Id,Prediction\n")        
+        for i,p in enumerate(y):
+            f.write("%d,%d\n"%(i+1,np.argmax(p)))
+        f.close()
         
+        break
         
+    '''    
     # Now dump file has the parameters for lowest error on Validation set
     dict_params = pickle.load(file('Conv_Params.pkl','r'))
     conv_net.setParams(dict_params)
@@ -382,5 +390,5 @@ if __name__ == '__main__':
     for i,p in enumerate(y):
         f.write("%d,%d\n"%(i+1,np.argmax(p)))
     f.close()
-    
+    '''
     print "Done!!!"
