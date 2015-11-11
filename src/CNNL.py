@@ -171,10 +171,11 @@ class convnetL:
 			if (val_acc / val_batches * 100) > bestVal :
 				bestVal = val_acc / val_batches * 100
 				self.getParams(path)
+				
 	def makePred(self,testX,input_var):
 		test_prediction = lasagne.layers.get_output(self.out, deterministic=True)
 		predict_fn = theano.function([input_var], T.argmax(test_prediction, axis=1))
-		print("Predicted class for first test input: %r" % predict_fn(testX))
+		return predict_fn(testX)
 		
 # ############################# Batch iterator ###############################
 

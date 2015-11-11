@@ -64,4 +64,12 @@ if __name__ == '__main__':
     network.setParams('p3.npz')    
     #network.trainNetwork(trainX, trainY, validationX, validationY ,0.08 ,num_epochs,target_var,0.0001,'p3.npz')
     #network.getParams('p3.npz')
-    network.makePred(testX,input_var)
+    y = np.array([])
+    for i in range(0,testX.shape[0]/500):
+        y = np.append(y,network.makePred(testX[i*500:(i+1)*500],input_var))
+
+    f = file('CNNL_Prediction.csv','w')
+    f.write("Id,Prediction\n")        
+    for i,p in enumerate(y):
+        f.write("%d,%d\n"%(i+1,p))
+    f.close()
